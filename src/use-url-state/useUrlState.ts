@@ -43,18 +43,30 @@ export function useUrlState<K extends string = string & {}>() {
   ) as Required<UrlStateProviderConfiguration>;
 
   const params = new URLSearchParams(self.location.search);
-  const override = (value: Argument) => value ?? "";
+  const setValue = (key: Key, value: Argument) => {
+    switch (value) {
+      case undefined:
+      case null:
+      case "":
+        params.delete(key);
+        break;
+      default:
+        params.set(key, value);
+    }
+  };
+  const getValue = <T>(key: Key): T => {
+    if (!params.has(key)) return null as T;
+    return params.get(key) as T;
+  };
 
   function set(query: Key, value: Argument) {
-    params.set(query, override(value));
+    setValue(query, value);
     context.push(search.value);
   }
 
   const setters = {
     record(query: Query) {
-      for (const key in query) {
-        params.set(key, override(query[key]));
-      }
+      for (const key in query) setValue(key, query[key]);
     },
     encode<T>(key: Key, value: T) {
       set(key, encoder(value));
@@ -65,8 +77,8 @@ export function useUrlState<K extends string = string & {}>() {
     },
   };
 
-  function get<T extends string>(key: Key, fallback = ""): T {
-    return (params.get(key) ?? fallback) as T;
+  function get<T>(key: Key, fallback?: T) {
+    return getValue<T>(key) ?? (fallback as T);
   }
 
   const getters = {
@@ -81,6 +93,10 @@ export function useUrlState<K extends string = string & {}>() {
     date(key: Key, fallback?: Date) {
       if (!search.has(key)) return fallback;
       return new Date(search.get(key));
+    },
+    timestamp(key: Key, fallback?: number) {
+      if (!search.has(key)) return fallback;
+      return new Date(search.get(key)).getTime();
     },
     parse<T>(key: Key, options?: Parse<T>) {
       const { fallback = "", reviver = JSON.parse } = { ...options };
