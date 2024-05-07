@@ -8,12 +8,24 @@ function pushState(query: string) {
 
 export const urlStateContext = createContext<UrlStateProviderConfiguration>({});
 
+type Reviver<T> = (value: string) => T;
+type Replacer<T> = (key: string, value: T) => T;
+
+type Stringify = <T>(value: T, replacer?: Replacer<T>) => string;
+type Parse = <T>(value: string, reviver?: Reviver<T>) => T;
+
+type Encode = (value: string) => string;
+type Decode = (value: string) => string;
+type Push = (query: string) => void;
+
 export type UrlStateProviderConfiguration = {
-  parse?: <T>(value: string) => T;
-  stringify?: <T>(value: T) => string;
-  encode?: (value: string) => string;
-  decode?: (value: string) => string;
-  push?: (query: string) => void;
+  reviver?: Reviver<unknown>;
+  replacer?: Replacer<unknown>;
+  parse?: Parse;
+  stringify?: Stringify;
+  encode?: Encode;
+  decode?: Decode;
+  push?: Push;
 };
 
 type UrlStateProviderProps = PropsWithChildren<UrlStateProviderConfiguration>;

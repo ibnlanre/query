@@ -6,34 +6,14 @@ import {
 } from "../url-state-provider";
 
 type Nullish = null | undefined;
-type Argument = string | Nullish;
 
-type Replacer<T> = (key: string, value: T) => T;
-type Reviver<T> = (value: string) => T;
-
-type Parse<T> = { fallback?: T; reviver?: Reviver<T> };
-type Stringify<T> = { value: T; replacer?: Replacer<T> };
-
-function decoder<T>(value: string, fallback?: T) {
-  try {
-    const decoded = decodeURIComponent(value);
-    return JSON.parse(decoded) as T;
-  } catch (error) {
-    console.error(error);
-    return fallback;
-  }
+function isNullish(value: unknown): value is Nullish {
+  return value === null || value === undefined;
 }
 
-function encoder<T>(value: T, replacer?: Replacer<T>) {
-  try {
-    const stringified = JSON.stringify(value, replacer);
-    return encodeURIComponent(stringified);
-  } catch (error) {
-    console.error(error);
-    return "";
-  }
-}
-class UrlState<Key extends string, Query extends { [k in Key]: Argument }> {
+type Arbitrary = string | (string & {});
+
+class UrlState<QueryKey extends Arbitrary> {
   private params: URLSearchParams;
   private context: Required<UrlStateProviderConfiguration>;
 
@@ -42,95 +22,122 @@ class UrlState<Key extends string, Query extends { [k in Key]: Argument }> {
     this.context = context;
   }
 
-  private setValue(key: Key, value: Argument) {
-    switch (value) {
-      case undefined:
-      case null:
-      case "":
-        this.params.delete(key);
-        break;
-      default:
-        this.params.set(key, value);
+  private encode<T>(value: T, replacer?: (key: string, value: T) => T) {
+    try {
+      const stringified = this.context.stringify(value, replacer);
+      return encodeURIComponent(stringified);
+    } catch (error) {
+      console.error(error);
     }
   }
 
-  private getValue<T>(key: Key): T {
-    if (!this.params.has(key)) return null as T;
-    return this.params.get(key) as T;
+  private decode<T>(value: string, reviver?: (value: string) => T) {
+    try {
+      const decoded = this.context.decode(value);
+      return this.context.parse(decoded, reviver) as T;
+    } catch (error) {
+      console.error(error);
+    }
   }
 
-  public set(query: Key, value: Argument) {
-    this.setValue(query, value);
-    this.context.push(this.search.value);
+  private resolve<T>(fallback?: T) {
+    if (!isNullish(fallback)) return [fallback];
+    return [];
+  }
+
+  private setValue(key: QueryKey, value: string | Nullish) {
+    if (value) this.params.append(key, value);
+  }
+
+  private setter(key: QueryKey, value: string | Nullish) {
+    this.setValue(key, value);
+    this.context.push(this.value);
   }
 
   private setters = {
-    record: (query: Query) => {
+    record: (query: Partial<Record<QueryKey, string | Nullish>>) => {
       for (const key in query) this.setValue(key, query[key]);
     },
-    encode: <T>(key: Key, value: T) => {
-      this.set(key, encoder(value));
+    encode: <T>(key: QueryKey, value: T) => {
+      this.setValue(key, this.encode(value));
     },
-    stringify: <T>(key: Key, options: Stringify<T>) => {
-      const { value, replacer } = { ...options };
-      this.set(key, JSON.stringify(value, replacer));
+    stringify: <T>(key: QueryKey, value: T) => {
+      this.setValue(key, JSON.stringify(value));
     },
   };
 
-  public get<T>(key: Key, fallback?: T) {
-    return this.getValue<T>(key) ?? (fallback as T);
+  private getValue(key: QueryKey) {
+    return this.params.getAll(key);
+  }
+
+  private getter(key: QueryKey, fallback?: string) {
+    const value = this.getValue(key);
+    if (value.length) return value;
+    else return this.resolve(fallback);
   }
 
   private getters = {
-    number(key: Key, fallback?: number) {
-      if (!this.params.has(key)) return fallback;
-      else return Number(this.params.get(key));
+    number: (key: QueryKey, fallback?: number) => {
+      const value = this.getValue(key);
+      if (value.length) return value.map(Number);
+      else return this.resolve(fallback);
     },
-    boolean(key: Key, fallback?: boolean) {
-      if (!this.params.has(key)) return fallback;
-      else return Boolean(this.params.get(key));
+    boolean: (key: QueryKey, fallback?: boolean) => {
+      const value = this.getValue(key);
+      if (value.length) return value.map(Boolean);
+      else return this.resolve(fallback);
     },
-    date(key: Key, fallback?: Date) {
-      if (!this.params.has(key)) return fallback;
-      return new Date(this.params.get(key));
+    date: (key: QueryKey, fallback?: string) => {
+      const value = this.getValue(key);
+      if (value.length) {
+        return value.map((date) => new Date(date).toISOString());
+      } else return this.resolve(fallback);
     },
-    timestamp(key: Key, fallback?: number) {
-      if (!this.params.has(key)) return fallback;
-      return new Date(this.params.get(key)).getTime();
+    timestamp: (key: QueryKey, fallback?: number) => {
+      const value = this.getValue(key);
+      if (value.length) {
+        return value.map((date) => new Date(date).getTime());
+      } else return this.resolve(fallback);
     },
-    parse<T>(key: Key, options?: Parse<T>) {
-      const { fallback = "", reviver = JSON.parse } = { ...options };
-      return reviver(this.params.get(key, String(fallback)));
+    parse: <T>(key: QueryKey, fallback?: T) => {
+      const value = this.getValue(key);
+      if (value.length) {
+        return value.map((item) => this.context.parse(item));
+      } else return this.resolve(fallback);
     },
-    decode<T>(key: Key, fallback?: T) {
-      return decoder(this.params.get(key), fallback) as T;
+    decode: <T>(key: QueryKey, fallback?: T) => {
+      const value = this.getValue(key);
+      if (value.length) {
+        return value.map((item) => this.decode(item));
+      } else return this.resolve(fallback);
     },
   };
 
-  public search = {
-    get value() {
-      return this.params.toString();
-    },
-    get entries() {
-      return Object.fromEntries(this.params.entries());
-    },
-    remove: (key: Key) => {
-      this.params.delete(key);
-      this.context.push(this.search.value);
-    },
-    set: Object.assign(this.set, this.setters),
-    get: Object.assign(this.get, this.getters),
-    has: (key: Key) => this.params.has(key),
-  };
+  get value() {
+    return this.params.toString();
+  }
+
+  get entries() {
+    return Object.fromEntries(this.params.entries());
+  }
+
+  public remove(key: QueryKey) {
+    this.params.delete(key);
+    this.context.push(this.value);
+  }
+
+  public set = Object.assign(this.setter, this.setters);
+  public get = Object.assign(this.getter, this.getters);
+  public has(key: QueryKey) {
+    return this.params.has(key);
+  }
 }
 
-export function useUrlState<K extends string>() {
+export function useUrlState<Marker extends string>() {
   const context = useContext(
     urlStateContext
   ) as Required<UrlStateProviderConfiguration>;
 
-  type Key = K | (string & {});
-  type Query = { [k in Key]: Argument };
-
-  const [search] = useState(() => new UrlState<Key, Query>(context));
+  type QueryKey = Marker | (string & {});
+  return new UrlState<QueryKey>(context);
 }
