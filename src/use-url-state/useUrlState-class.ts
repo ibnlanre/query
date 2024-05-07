@@ -133,11 +133,19 @@ class UrlState<QueryKey extends Arbitrary> {
   }
 }
 
-export function useUrlState<Marker extends string>() {
-  const context = useContext(
-    urlStateContext
+export function useUrlState<Marker extends string>(
+  configuration?: UrlStateProviderConfiguration
+) {
+  const context = useContext(urlStateContext);
+  const contextSpecificConfiguration = Object.assign(
+    context,
+    configuration
   ) as Required<UrlStateProviderConfiguration>;
 
   type QueryKey = Marker | (string & {});
-  return new UrlState<QueryKey>(context);
+  const [urlState] = useState(() => {
+    return new UrlState<QueryKey>(contextSpecificConfiguration);
+  });
+
+  return urlState;
 }
