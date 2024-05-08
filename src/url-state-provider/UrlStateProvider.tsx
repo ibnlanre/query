@@ -6,42 +6,49 @@ function pushState(query: string) {
   self.history.pushState({}, "", url);
 }
 
-export const urlStateContext = createContext<UrlStateProviderConfiguration>({});
+export type Reviver<T> = (value: string) => T;
+export type Replacer<T> = (key: string, value: T) => T;
 
-type Reviver<T> = (value: string) => T;
-type Replacer<T> = (key: string, value: T) => T;
+export type Stringify = <T>(value: T, replacer?: Replacer<T>) => string;
+export type Parse = <T>(value: string, reviver?: Reviver<T>) => T;
 
-type Stringify = <T>(value: T, replacer?: Replacer<T>) => string;
-type Parse = <T>(value: string, reviver?: Reviver<T>) => T;
-
-type Encode = (value: string) => string;
-type Decode = (value: string) => string;
-type Push = (query: string) => void;
+export type Encode = (value: string) => string;
+export type Decode = (value: string) => string;
+export type Push = (query: string) => void;
 
 export type UrlStateProviderConfiguration = {
   reviver?: Reviver<unknown>;
   replacer?: Replacer<unknown>;
-  parse?: Parse;
-  stringify?: Stringify;
-  encode?: Encode;
-  decode?: Decode;
-  push?: Push;
+  parse: Parse;
+  stringify: Stringify;
+  encode: Encode;
+  decode: Decode;
+  push: Push;
 };
 
-type UrlStateProviderProps = PropsWithChildren<UrlStateProviderConfiguration>;
+const defaults = {
+  encode: encodeURIComponent,
+  decode: decodeURIComponent,
+  stringify: JSON.stringify,
+  parse: JSON.parse,
+  push: pushState,
+} satisfies UrlStateProviderConfiguration;
+
+export const urlStateContext =
+  createContext<UrlStateProviderConfiguration>(defaults);
+
+type UrlStateProviderProps = PropsWithChildren<
+  Partial<UrlStateProviderConfiguration>
+>;
 
 export function UrlStateProvider({
   children,
   ...configuration
 }: UrlStateProviderProps) {
-  const defaults = {
-    encode: encodeURIComponent,
-    decode: decodeURIComponent,
-    stringify: JSON.stringify,
-    parse: JSON.parse,
-    push: pushState,
-  };
-  const value = Object.assign(defaults, configuration);
+  const value = Object.assign(
+    defaults,
+    configuration
+  ) as Required<UrlStateProviderConfiguration>;
 
   return (
     <urlStateContext.Provider value={value}>
