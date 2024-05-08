@@ -1,22 +1,9 @@
+import { isDefined, type Nullish } from "../guards";
 import type {
   Replacer,
   Reviver,
   UrlStateProviderConfiguration,
 } from "../url-state-provider";
-
-type Empty = "";
-function isEmpty(value: unknown): value is Empty {
-  return value === "";
-}
-
-type Nullish = null | undefined;
-function isNullish(value: unknown): value is Nullish {
-  return value === null || value === undefined;
-}
-
-function isDefined<T>(value: T | Empty | Nullish): value is T {
-  return !isEmpty(value) && !isNullish(value);
-}
 
 type Arbitrary = string | (string & {});
 export class UrlState<QueryKey extends Arbitrary> {
@@ -28,7 +15,7 @@ export class UrlState<QueryKey extends Arbitrary> {
     this.context = context;
   }
 
-  private encode = <T>(value: T, replacer?: Replacer) => {
+  private encode = <Value>(value: Value, replacer?: Replacer) => {
     try {
       const stringified = this.context.stringify(value, replacer);
       return encodeURIComponent(stringified);
@@ -37,13 +24,13 @@ export class UrlState<QueryKey extends Arbitrary> {
     }
   };
 
-  private decode = <T>(value: string, reviver?: Reviver) => {
+  private decode = <Value>(value: string, reviver?: Reviver) => {
     try {
       const decoded = this.context.decode(value);
-      return this.context.parse(decoded, reviver) as T;
+      return this.context.parse(decoded, reviver) as Value;
     } catch (error) {
       console.error(error);
-      return undefined as T;
+      return undefined as Value;
     }
   };
 
@@ -55,14 +42,14 @@ export class UrlState<QueryKey extends Arbitrary> {
     return new Date(value).getTime();
   };
 
-  private parse = <T>(value: string) => {
-    return this.context.parse<T>(value, this.context.reviver);
+  private parse = <Value>(value: string) => {
+    return this.context.parse<Value>(value, this.context.reviver);
   };
 
-  private resolve = <T>(
+  private resolve = <Value>(
     key: string,
-    transformer: (value: string) => T,
-    fallback?: T
+    transformer: (value: string) => Value,
+    fallback?: Value
   ) => {
     const value = this.params.getAll(key);
     return value.length
@@ -82,10 +69,10 @@ export class UrlState<QueryKey extends Arbitrary> {
       for (const key in query) this.setValue(key, query[key], false);
       this.context.push(this.value);
     },
-    encode: <T>(key: QueryKey, value: T) => {
+    encode: <Value>(key: QueryKey, value: Value) => {
       this.setValue(key, this.encode(value));
     },
-    stringify: <T>(key: QueryKey, value: T) => {
+    stringify: <Value>(key: QueryKey, value: Value) => {
       this.setValue(key, this.context.stringify(value, this.context.replacer));
     },
   };
@@ -95,11 +82,11 @@ export class UrlState<QueryKey extends Arbitrary> {
   };
 
   private getters = {
-    parse: <T>(key: QueryKey, fallback?: T) => {
-      return this.resolve<T>(key, this.parse, fallback);
+    parse: <Value>(key: QueryKey, fallback?: Value) => {
+      return this.resolve<Value>(key, this.parse, fallback);
     },
-    decode: <T>(key: QueryKey, fallback?: T) => {
-      return this.resolve<T>(key, this.decode, fallback);
+    decode: <Value>(key: QueryKey, fallback?: Value) => {
+      return this.resolve<Value>(key, this.decode, fallback);
     },
     number: (key: QueryKey, fallback?: number) => {
       return this.resolve(key, Number, fallback);

@@ -9,4 +9,5 @@ export type {
   Stringify,
   This,
   UrlStateProviderConfiguration,
+  UrlStateProviderProps,
 } from "./UrlStateProvider";

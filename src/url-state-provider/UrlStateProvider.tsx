@@ -39,7 +39,7 @@ export const urlStateContext = createContext<UrlStateProviderConfiguration>(
   undefined as unknown as UrlStateProviderConfiguration
 );
 
-type UrlStateProviderProps = PropsWithChildren<
+export type UrlStateProviderProps = PropsWithChildren<
   Partial<UrlStateProviderConfiguration>
 >;
 
