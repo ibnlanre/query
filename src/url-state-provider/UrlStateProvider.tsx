@@ -20,6 +20,7 @@ export type Push = (query: string) => void;
 export type UrlStateProviderConfiguration = {
   reviver?: Reviver;
   replacer?: Replacer;
+  debug?: boolean;
   parse: Parse;
   stringify: Stringify;
   encode: Encode;
@@ -28,6 +29,7 @@ export type UrlStateProviderConfiguration = {
 };
 
 const defaults = {
+  debug: false,
   encode: encodeURIComponent,
   decode: decodeURIComponent,
   stringify: JSON.stringify,
