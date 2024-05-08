@@ -1,4 +1,8 @@
-import { type UrlStateProviderConfiguration } from "../url-state-provider";
+import type {
+  Replacer,
+  Reviver,
+  UrlStateProviderConfiguration,
+} from "../url-state-provider";
 
 type Empty = "";
 function isEmpty(value: unknown): value is Empty {
@@ -24,7 +28,7 @@ export class UrlState<QueryKey extends Arbitrary> {
     this.context = context;
   }
 
-  private encode = <T>(value: T, replacer?: (key: string, value: T) => T) => {
+  private encode = <T>(value: T, replacer?: Replacer) => {
     try {
       const stringified = this.context.stringify(value, replacer);
       return encodeURIComponent(stringified);
@@ -33,7 +37,7 @@ export class UrlState<QueryKey extends Arbitrary> {
     }
   };
 
-  private decode = <T>(value: string, reviver?: (value: string) => T) => {
+  private decode = <T>(value: string, reviver?: Reviver) => {
     try {
       const decoded = this.context.decode(value);
       return this.context.parse(decoded, reviver) as T;
