@@ -30,13 +30,17 @@ export class QueryState<QueryKey extends Arbitrary> {
    */
   private context: UrlStateContext;
 
-  constructor(
-    query: string,
-    context: UrlStateContext,
-    modifier?: Partial<UrlStateContext>
-  ) {
+  /**
+   * @param query - Query string
+   * @param context - UrlStateContext object
+   *
+   * @description This method works as follows:
+   * - It initializes the URLSearchParams object with the query string.
+   * - It initializes the context object with the context object.
+   */
+  constructor(query: string, context: UrlStateContext) {
     this.params = new URLSearchParams(query);
-    this.context = Object.assign(context, modifier);
+    this.context = context;
   }
 
   /**
