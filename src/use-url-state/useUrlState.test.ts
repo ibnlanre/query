@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 
-import { renderHook, screen } from "@testing-library/react";
+import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { UrlStateProvider } from "../url-state-provider";
@@ -21,7 +21,7 @@ describe("useUrlQuery", () => {
     const { result } = renderHook(() => useUrlState(), {
       wrapper: UrlStateProvider,
     });
-    const search = result.current;
+    const { search } = result.current;
 
     search.set("name", "John");
     search.set("age", "20");
@@ -34,7 +34,7 @@ describe("useUrlQuery", () => {
     const { result } = renderHook(() => useUrlState(), {
       wrapper: UrlStateProvider,
     });
-    const search = result.current;
+    const { search } = result.current;
 
     search.set.record({ name: "John", age: "20" });
 
@@ -48,7 +48,7 @@ describe("useUrlQuery", () => {
       wrapper: UrlStateProvider,
     });
 
-    const search = result.current;
+    const { search } = result.current;
     search.set.record({ name: "John", age: "20" });
 
     expect(search.get("name")).to.have.members(["John"]);
@@ -59,7 +59,7 @@ describe("useUrlQuery", () => {
     const { result } = renderHook(() => useUrlState(), {
       wrapper: UrlStateProvider,
     });
-    const search = result.current;
+    const { search } = result.current;
 
     search.set("name", "John");
     search.remove("name");
@@ -71,7 +71,7 @@ describe("useUrlQuery", () => {
     const { result } = renderHook(() => useUrlState(), {
       wrapper: UrlStateProvider,
     });
-    const search = result.current;
+    const { search } = result.current;
 
     expect(search.get("name", "John")).to.have.members(["John"]);
     expect(search.get("age", "20")).to.have.members(["20"]);
@@ -82,7 +82,7 @@ describe("useUrlQuery", () => {
       wrapper: UrlStateProvider,
     });
 
-    const search = result.current;
+    const { search } = result.current;
     search.set("age", "20");
 
     expect(search.get.number("age")).to.have.members([20]);
@@ -103,7 +103,7 @@ describe("useUrlQuery", () => {
       }
     );
 
-    const search = result.current;
+    const { search } = result.current;
     search.set.stringify("name", "john");
 
     const parsedName = search.get.parse("name", "john");
