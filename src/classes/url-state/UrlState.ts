@@ -1,13 +1,9 @@
-import { assign } from "@/assign";
+import { mergeContext, pushState } from "@/functions";
+
 import { BaseState } from "../base-state";
 import { QueryState } from "../query-state";
 
 import type { Arbitrary, UrlStateContext } from "@/types";
-
-function pushState(href: string) {
-  const data = { ...self.history.state, as: href, url: href };
-  self.history.replaceState(data, "", href);
-}
 
 const defaults = {
   debug: false,
@@ -17,13 +13,6 @@ const defaults = {
   parse: JSON.parse,
   push: pushState,
 } satisfies UrlStateContext;
-
-function mergeContext(
-  original: UrlStateContext,
-  context?: Partial<UrlStateContext>
-): UrlStateContext {
-  return assign(original, context);
-}
 
 export class UrlState<QueryKey extends Arbitrary> {
   /**
@@ -53,8 +42,8 @@ export class UrlState<QueryKey extends Arbitrary> {
 
   private get searchContext() {
     return mergeContext(this.context, {
-      push: (href: string) => {
-        this.model.search = href;
+      push: (query: string) => {
+        this.model.search = query;
         pushState(this.model.href);
       },
     });
@@ -66,8 +55,8 @@ export class UrlState<QueryKey extends Arbitrary> {
 
   private get hashContext() {
     return mergeContext(this.context, {
-      push: (href: string) => {
-        this.model.hash = href;
+      push: (query: string) => {
+        this.model.hash = query;
         pushState(this.model.href);
       },
     });

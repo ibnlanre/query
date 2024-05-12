@@ -1,8 +1,9 @@
 import { useContext, useMemo } from "react";
 
-import { assign } from "@/assign";
 import { UrlState } from "@/classes";
+import { assign } from "@/functions";
 import { Arbitrary, UrlStateContext } from "@/types";
+
 import { urlStateContext } from "../url-state-provider";
 
 export function useUrlState<Marker extends string>(

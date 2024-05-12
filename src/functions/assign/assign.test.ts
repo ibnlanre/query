@@ -6,14 +6,14 @@ describe("assign", () => {
     const target = { a: 1, b: 2 };
     const source = { b: 3, c: 4 };
     const result = assign(target, source);
-    expect(result).toEqual({ a: 1, b: 3, c: 4 });
+    expect(result).deep.equal({ a: 1, b: 3, c: 4 });
   });
 
   it("should not modify the original target object", () => {
     const target = { a: 1, b: 2 };
     const source = { b: 3, c: 4 };
     assign(target, source);
-    expect(target).toEqual({ a: 1, b: 2 });
+    expect(target).deep.equal({ a: 1, b: 2 });
   });
 
   it("should return a new object with assigned properties", () => {
@@ -28,20 +28,20 @@ describe("assign", () => {
     const target = { a: 1, b: 2 };
     const source = {};
     const result = assign(target, source);
-    expect(result).toEqual({ a: 1, b: 2 });
+    expect(result).deep.equal({ a: 1, b: 2 });
   });
 
   it("should handle empty target object", () => {
     const target = {};
     const source = { a: 1, b: 2 };
     const result = assign(target, source);
-    expect(result).toEqual({ a: 1, b: 2 });
+    expect(result).deep.equal({ a: 1, b: 2 });
   });
 
   it("should handle empty target and source objects", () => {
     const target = {};
     const source = {};
     const result = assign(target, source);
-    expect(result).toEqual({});
+    expect(result).deep.equal({});
   });
 });
