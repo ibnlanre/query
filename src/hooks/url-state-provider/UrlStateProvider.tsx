@@ -1,5 +1,5 @@
+import type { UrlStateContext } from "@/types";
 import { createContext, PropsWithChildren } from "react";
-import type { UrlStateContext } from "../types";
 
 export const urlStateContext = createContext<Partial<UrlStateContext>>(
   undefined as unknown as UrlStateContext

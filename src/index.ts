@@ -1,9 +1,9 @@
+export { BaseState, QueryState, UrlState } from "./classes";
 export { isDefined, isEmpty, isNullish } from "./guards";
-export { UrlState } from "./url-state";
-export { UrlStateProvider, urlStateContext } from "./url-state-provider";
-export { useUrlState } from "./use-url-state";
+export { UrlStateProvider, urlStateContext, useUrlState } from "./hooks";
 
 export type { Defined, Empty, Nullish } from "./guards";
+export type { UrlStateProviderProps } from "./hooks";
 export type {
   Arbitrary,
   Decode,
@@ -17,4 +17,3 @@ export type {
   This,
   UrlStateContext,
 } from "./types";
-export type { UrlStateProviderProps } from "./url-state-provider";

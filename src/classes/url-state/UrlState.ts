@@ -1,10 +1,12 @@
-import { BaseState } from "./BaseState";
-import { QueryState } from "./QueryState";
+import { assign } from "@/assign";
+import { BaseState } from "../base-state";
+import { QueryState } from "../query-state";
 
-import type { Arbitrary, UrlStateContext } from "../types";
+import type { Arbitrary, UrlStateContext } from "@/types";
 
 function pushState(href: string) {
-  self.history.pushState({}, "", href);
+  const data = { ...self.history.state, as: href, url: href };
+  self.history.replaceState(data, "", href);
 }
 
 const defaults = {
@@ -16,8 +18,11 @@ const defaults = {
   push: pushState,
 } satisfies UrlStateContext;
 
-function mergeContext(context: Partial<UrlStateContext>): UrlStateContext {
-  return Object.assign(defaults, context);
+function mergeContext(
+  original: UrlStateContext,
+  context?: Partial<UrlStateContext>
+): UrlStateContext {
+  return assign(original, context);
 }
 
 export class UrlState<QueryKey extends Arbitrary> {
@@ -39,7 +44,7 @@ export class UrlState<QueryKey extends Arbitrary> {
     context?: Partial<UrlStateContext>
   ) {
     this.model = new URL(href);
-    this.context = Object.assign(defaults, context);
+    this.context = mergeContext(defaults, context);
   }
 
   public get url() {
@@ -47,11 +52,10 @@ export class UrlState<QueryKey extends Arbitrary> {
   }
 
   private get searchContext() {
-    return mergeContext({
+    return mergeContext(this.context, {
       push: (href: string) => {
         this.model.search = href;
-        location.replace(this.model.href);
-        self.history.pushState({}, "", location.href);
+        pushState(this.model.href);
       },
     });
   }
@@ -60,7 +64,16 @@ export class UrlState<QueryKey extends Arbitrary> {
     return new QueryState<QueryKey>(this.url.query, this.searchContext);
   }
 
+  private get hashContext() {
+    return mergeContext(this.context, {
+      push: (href: string) => {
+        this.model.hash = href;
+        pushState(this.model.href);
+      },
+    });
+  }
+
   public get hash() {
-    return new QueryState<QueryKey>(this.url.fragment, this.context);
+    return new QueryState<QueryKey>(this.url.fragment, this.hashContext);
   }
 }

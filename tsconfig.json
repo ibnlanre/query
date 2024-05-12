@@ -10,6 +10,12 @@
     "skipLibCheck": true,
     "types": [
       "vitest/globals"
-    ]
+    ],
+    "baseUrl": "./",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    }
   }
 }

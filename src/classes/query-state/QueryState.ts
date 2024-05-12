@@ -1,11 +1,5 @@
-import { isDefined, type Nullish } from "../guards";
-import type {
-  Arbitrary,
-  RecordValue,
-  Replacer,
-  Reviver,
-  UrlStateContext,
-} from "../types";
+import { isDefined, type Nullish } from "@/guards";
+import type { Arbitrary, RecordValue, UrlStateContext } from "@/types";
 
 export class QueryState<QueryKey extends Arbitrary> {
   /**
@@ -53,12 +47,12 @@ export class QueryState<QueryKey extends Arbitrary> {
    * - If an error occurs, it logs the error to the console.
    * - It returns `undefined` if an error occurs.
    */
-  private encode = <Value>(value: Value, replacer?: Replacer) => {
+  private encode = <Value extends string>(value: Value) => {
     try {
-      const stringified = this.context.stringify(value, replacer);
-      return encodeURIComponent(stringified);
+      return this.context.encode(value);
     } catch (error) {
       if (this.context.debug) console.error(error);
+      return value;
     }
   };
 
@@ -73,13 +67,13 @@ export class QueryState<QueryKey extends Arbitrary> {
    * - If an error occurs, it logs the error to the console.
    * - It returns `undefined` if an error occurs.
    */
-  private decode = <Value>(value: string, reviver?: Reviver) => {
+  private decode = <Value>(value: string) => {
+    const decoded = this.context.decode(value);
     try {
-      const decoded = this.context.decode(value);
-      return this.context.parse(decoded, reviver) as Value;
+      return this.parse(decoded) as Value;
     } catch (error) {
       if (this.context.debug) console.error(error);
-      return undefined as Value;
+      return decoded as Value;
     }
   };
 
@@ -94,14 +88,10 @@ export class QueryState<QueryKey extends Arbitrary> {
    */
   private parse = <Value>(value: string) => {
     try {
-      const parsedValue = this.context.parse<Value>(
-        value,
-        this.context.reviver
-      );
-      return parsedValue;
+      return this.context.parse<Value>(value, this.context.reviver);
     } catch (error) {
       if (this.context.debug) console.error(error);
-      return undefined as Value;
+      return value as Value;
     }
   };
 
@@ -116,14 +106,10 @@ export class QueryState<QueryKey extends Arbitrary> {
    */
   private stringify = <Value>(value: Value) => {
     try {
-      const stringifiedValue = this.context.stringify(
-        value,
-        this.context.replacer
-      );
-      return stringifiedValue;
+      return this.context.stringify(value, this.context.replacer);
     } catch (error) {
       if (this.context.debug) console.error(error);
-      return "";
+      return value as string;
     }
   };
 
@@ -188,10 +174,28 @@ export class QueryState<QueryKey extends Arbitrary> {
     }
   };
 
+  /**
+   * @param key - Query key
+   * @param value - Query value
+   *
+   * @description This method works as follows:
+   * - It appends the value to the URLSearchParams object.
+   * - It does not push the updated URL to the context.
+   * - If the value is empty, it does not append the value to the URLSearchParams object.
+   */
   private include = (key: QueryKey, value: string | Nullish) => {
     this.setValue(key, value, false);
   };
 
+  /**
+   * @param key - Query key
+   * @param value - Query value
+   *
+   * @description This method works as follows:
+   * - It appends the value to the URLSearchParams object.
+   * - It does not push the updated URL to the context.
+   * - If the value is an array, it appends each value to the URLSearchParams object.
+   */
   private record = (key: QueryKey, value: RecordValue) => {
     if (Array.isArray(value)) {
       value.forEach((item) => this.include(key, item));
@@ -214,9 +218,27 @@ export class QueryState<QueryKey extends Arbitrary> {
       for (const key of keys) this.record(key, query[key]);
       if (keys.length) this.context.push(this.value);
     },
-    encode: <Value>(key: QueryKey, value: Value) => {
+    /**
+     * @param key - Query key
+     * @param value - Query value
+     *
+     * @description This method works as follows:
+     * - It appends the value to the URLSearchParams object.
+     * - It pushes the updated URL to the context.
+     * - If the value is empty, it does not append the value to the URLSearchParams object.
+     */
+    encode: <Value extends string>(key: QueryKey, value: Value) => {
       this.setValue(key, this.encode(value));
     },
+    /**
+     * @param key - Query key
+     * @param value - Query value
+     *
+     * @description This method works as follows:
+     * - It appends the value to the URLSearchParams object.
+     * - It pushes the updated URL to the context.
+     * - If the value is empty, it does not append the value to the URLSearchParams object.
+     */
     stringify: <Value>(key: QueryKey, value: Value) => {
       this.setValue(key, this.stringify(value));
     },
@@ -252,7 +274,11 @@ export class QueryState<QueryKey extends Arbitrary> {
   }
 
   public get entries() {
-    return Object.fromEntries(this.params.entries());
+    const entries: Record<string, string[]> = {};
+    for (const [key, value] of this.params.entries()) {
+      entries[key] = value.split(",");
+    }
+    return entries;
   }
 
   public remove = (key: QueryKey) => {
