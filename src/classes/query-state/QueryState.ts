@@ -1,7 +1,17 @@
+import { reverseList } from "@/functions";
 import { isDefined, type Nullish } from "@/guards";
-import type { Arbitrary, RecordValue, UrlStateContext } from "@/types";
+import type {
+  Arbitrary,
+  GetRule,
+  RecordValue,
+  SetRule,
+  UrlStateContext,
+} from "@/types";
 
-export class QueryState<QueryKey extends Arbitrary> {
+export class QueryState<Marker extends Arbitrary> {
+  private getRule: Record<Marker, keyof GetRule<Marker>>;
+  private setRule: Record<Marker, keyof SetRule<Marker>>;
+
   /**
    * @param params - URLSearchParams object
    *
@@ -22,7 +32,7 @@ export class QueryState<QueryKey extends Arbitrary> {
    * - The configuration object is used to parse and stringify values.
    * - The configuration object is used to update the URL.
    */
-  private context: UrlStateContext;
+  private context: UrlStateContext<Marker>;
 
   /**
    * @param query - Query string
@@ -32,7 +42,9 @@ export class QueryState<QueryKey extends Arbitrary> {
    * - It initializes the URLSearchParams object with the query string.
    * - It initializes the context object with the context object.
    */
-  constructor(query: string, context: UrlStateContext) {
+  constructor(query: string, context: UrlStateContext<Marker>) {
+    this.setRule = reverseList(context.setRule);
+    this.getRule = reverseList(context.getRule);
     this.params = new URLSearchParams(query);
     this.context = context;
   }
@@ -147,13 +159,17 @@ export class QueryState<QueryKey extends Arbitrary> {
    */
   private resolve = <Value>(
     key: string,
-    transformer: (value: string) => Value,
+    transformer = (value: string) => value as Value,
     fallback?: Value
   ) => {
     const value = this.params.getAll(key);
-    return value.length
-      ? value.map(transformer).filter(isDefined)
-      : [fallback].filter(isDefined);
+    if (value) return value.map(transformer).filter(isDefined);
+    else return [fallback].filter(isDefined);
+  };
+
+  private handleStringify = <Value>(value: Value) => {
+    if (typeof value == "string") return value;
+    else return this.stringify(value);
   };
 
   /**
@@ -166,10 +182,13 @@ export class QueryState<QueryKey extends Arbitrary> {
    * - It pushes the updated URL to the context.
    * - If the value is empty, it does not append the value to the URLSearchParams object.
    * - If the value is empty, it does not push the updated URL to the context.
+   *
+   * @
    */
-  private setValue = (key: QueryKey, value: string | Nullish, push = true) => {
+  private setValue = (key: Marker, value: unknown, push = true) => {
     if (isDefined(value)) {
-      this.params.append(key, value);
+      const stringified = this.handleStringify(value);
+      this.params.append(key, stringified);
       if (push) this.context.push(this.value);
     }
   };
@@ -183,7 +202,7 @@ export class QueryState<QueryKey extends Arbitrary> {
    * - It does not push the updated URL to the context.
    * - If the value is empty, it does not append the value to the URLSearchParams object.
    */
-  private include = (key: QueryKey, value: string | Nullish) => {
+  private include = (key: Marker, value: string | Nullish) => {
     this.setValue(key, value, false);
   };
 
@@ -196,7 +215,7 @@ export class QueryState<QueryKey extends Arbitrary> {
    * - It does not push the updated URL to the context.
    * - If the value is an array, it appends each value to the URLSearchParams object.
    */
-  private record = (key: QueryKey, value: RecordValue) => {
+  private record = (key: Marker, value: RecordValue) => {
     if (Array.isArray(value)) {
       value.forEach((item) => this.include(key, item));
     } else this.include(key, value);
@@ -213,8 +232,8 @@ export class QueryState<QueryKey extends Arbitrary> {
      * - If the value is empty, it does not append the value to the URLSearchParams object.
      * - If the value is empty, it does not push the updated URL to the context.
      */
-    record: (query: Partial<Record<QueryKey, RecordValue>>) => {
-      const keys = Object.keys(query) as QueryKey[];
+    record: (query: Partial<Record<Marker, RecordValue>>) => {
+      const keys = Object.keys(query) as Marker[];
       for (const key of keys) this.record(key, query[key]);
       if (keys.length) this.context.push(this.value);
     },
@@ -227,7 +246,7 @@ export class QueryState<QueryKey extends Arbitrary> {
      * - It pushes the updated URL to the context.
      * - If the value is empty, it does not append the value to the URLSearchParams object.
      */
-    encode: <Value extends string>(key: QueryKey, value: Value) => {
+    encode: <Value extends string>(key: Marker, value: Value) => {
       this.setValue(key, this.encode(value));
     },
     /**
@@ -239,32 +258,41 @@ export class QueryState<QueryKey extends Arbitrary> {
      * - It pushes the updated URL to the context.
      * - If the value is empty, it does not append the value to the URLSearchParams object.
      */
-    stringify: <Value>(key: QueryKey, value: Value) => {
+    stringify: <Value>(key: Marker, value: Value) => {
       this.setValue(key, this.stringify(value));
     },
   };
 
-  private getValue = (key: QueryKey, fallback?: string) => {
-    return this.resolve(key, (value) => value, fallback);
+  private retrieveTransform = <Value>(key: Marker) => {
+    type Transform = (key: Marker, fallback?: Value) => Value[];
+
+    const type = this.getRule[key];
+    if (type) return this.getters[type] as Transform;
+  };
+
+  private getValue = <Value>(key: Marker, fallback?: Value) => {
+    const transform = this.retrieveTransform<Value>(key);
+    if (transform) return transform(key, fallback);
+    return this.resolve<Value>(key, undefined, fallback);
   };
 
   private getters = {
-    parse: <Value>(key: QueryKey, fallback?: Value) => {
+    parse: <Value>(key: Marker, fallback?: Value) => {
       return this.resolve<Value>(key, this.parse, fallback);
     },
-    decode: <Value>(key: QueryKey, fallback?: Value) => {
+    decode: <Value>(key: Marker, fallback?: Value) => {
       return this.resolve<Value>(key, this.decode, fallback);
     },
-    number: (key: QueryKey, fallback?: number) => {
+    number: (key: Marker, fallback?: number) => {
       return this.resolve(key, Number, fallback);
     },
-    datetime: (key: QueryKey, fallback?: string) => {
+    datetime: (key: Marker, fallback?: string) => {
       return this.resolve(key, this.datetime, fallback);
     },
-    timestamp: (key: QueryKey, fallback?: number) => {
+    timestamp: (key: Marker, fallback?: number) => {
       return this.resolve(key, this.timestamp, fallback);
     },
-    boolean: (key: QueryKey, fallback?: boolean) => {
+    boolean: (key: Marker, fallback?: boolean) => {
       return this.resolve(key, Boolean, fallback);
     },
   };
@@ -281,7 +309,7 @@ export class QueryState<QueryKey extends Arbitrary> {
     return entries;
   }
 
-  public remove = (key: QueryKey) => {
+  public remove = (key: Marker) => {
     this.params.delete(key);
     this.context.push(this.value);
   };
@@ -322,5 +350,5 @@ export class QueryState<QueryKey extends Arbitrary> {
    * - It returns `true` if the query key exists in the URLSearchParams object.
    * - It returns `false` if the query key does not exist in the URLSearchParams object.
    */
-  public has = (key: QueryKey) => this.params.has(key);
+  public has = (key: Marker) => this.params.has(key);
 }

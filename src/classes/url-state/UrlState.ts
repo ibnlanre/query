@@ -12,6 +12,8 @@ const defaults = {
   stringify: JSON.stringify,
   parse: JSON.parse,
   push: pushState,
+  setRule: {},
+  getRule: {},
 } satisfies UrlStateContext;
 
 export class UrlState<QueryKey extends Arbitrary> {

@@ -1,14 +1,14 @@
-import type {
-  Reviver,
-  Replacer,
-  Parse,
-  Stringify,
-  Encode,
-  Decode,
-  Push,
-} from "..";
+import type { Decode } from "./Decode";
+import type { Encode } from "./Encode";
+import type { GetRule } from "./GetRule";
+import type { Parse } from "./Parse";
+import type { Push } from "./Push";
+import type { Replacer } from "./Replacer";
+import type { Reviver } from "./Reviver";
+import type { SetRule } from "./SetRule";
+import type { Stringify } from "./Stringify";
 
-export type UrlStateContext = {
+export type UrlStateContext<Marker extends string> = {
   /**
    * Used to revive the URL.
    *
@@ -65,4 +65,28 @@ export type UrlStateContext = {
    * @default pushState
    */
   push: Push;
+
+  /**
+   * default transform rule for set.
+   *
+   * @type {SetRule}
+   * @default undefined
+   */
+  setRule: SetRule<Marker>;
+
+  /**
+   * default transform rule for get.
+   *
+   * @type {GetRule}
+   * @default undefined
+   */
+  getRule: GetRule<Marker>;
+};
+
+type Rule<T extends string> = {
+  parse: T[];
+};
+
+type Context<T extends string> = {
+  rule: Rule<T>;
 };

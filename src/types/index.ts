@@ -1,11 +1,13 @@
 export type { Arbitrary } from "./Arbitrary";
 export type { Decode } from "./Decode";
 export type { Encode } from "./Encode";
+export type { GetRule } from "./GetRule";
 export type { Parse } from "./Parse";
 export type { Push } from "./Push";
 export type { RecordValue } from "./RecordValue";
 export type { Replacer } from "./Replacer";
 export type { Reviver } from "./Reviver";
+export type { SetRule } from "./SetRule";
 export type { Stringify } from "./Stringify";
 export type { This } from "./This";
 export type { UrlStateContext } from "./UrlStateContext";
