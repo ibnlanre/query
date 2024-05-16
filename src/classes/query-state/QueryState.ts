@@ -112,11 +112,13 @@ export class QueryState<Marker extends Arbitrary> {
    *
    * @description This method works as follows:
    * - It stringifies the value using the context's stringify method.
-   * - It returns the stringified value.
+   * - If the value is already a string, it returns the value.
    * - If an error occurs, it logs the error to the console.
    * - It returns `undefined` if an error occurs.
+   * - Otherwise, it returns the stringified value.
    */
   private stringify = <Value>(value: Value) => {
+    if (typeof value == "string") return value;
     try {
       return this.context.stringify(value, this.context.replacer);
     } catch (error) {
@@ -167,11 +169,6 @@ export class QueryState<Marker extends Arbitrary> {
     else return [fallback].filter(isDefined);
   };
 
-  private handleStringify = <Value>(value: Value) => {
-    if (typeof value == "string") return value;
-    else return this.stringify(value);
-  };
-
   /**
    * @param key - Query key
    * @param value - Query value
@@ -187,8 +184,7 @@ export class QueryState<Marker extends Arbitrary> {
    */
   private setValue = (key: Marker, value: unknown, push = true) => {
     if (isDefined(value)) {
-      const stringified = this.handleStringify(value);
-      this.params.append(key, stringified);
+      this.params.append(key, this.stringify(value));
       if (push) this.context.push(this.value);
     }
   };
@@ -249,18 +245,18 @@ export class QueryState<Marker extends Arbitrary> {
     encode: <Value extends string>(key: Marker, value: Value) => {
       this.setValue(key, this.encode(value));
     },
-    /**
-     * @param key - Query key
-     * @param value - Query value
-     *
-     * @description This method works as follows:
-     * - It appends the value to the URLSearchParams object.
-     * - It pushes the updated URL to the context.
-     * - If the value is empty, it does not append the value to the URLSearchParams object.
-     */
-    stringify: <Value>(key: Marker, value: Value) => {
-      this.setValue(key, this.stringify(value));
-    },
+    // /**
+    //  * @param key - Query key
+    //  * @param value - Query value
+    //  *
+    //  * @description This method works as follows:
+    //  * - It appends the value to the URLSearchParams object.
+    //  * - It pushes the updated URL to the context.
+    //  * - If the value is empty, it does not append the value to the URLSearchParams object.
+    //  */
+    // stringify: <Value>(key: Marker, value: Value) => {
+    //   this.setValue(key, this.stringify(value));
+    // },
   };
 
   private retrieveTransform = <Value>(key: Marker) => {
