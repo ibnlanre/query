@@ -3,8 +3,8 @@ import "@testing-library/jest-dom/vitest";
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { UrlStateProvider } from "../url-state-provider";
-import { useUrlState } from "./useUrlState";
+import { UrlStateProvider } from ".";
+import { useUrlState } from "../use-url-state/useUrlState";
 
 beforeEach(() => {
   window.history.pushState({}, "", "/");

@@ -1,12 +1,7 @@
 import { reverseList } from "@/functions";
-import { isDefined, type Nullish } from "@/guards";
-import type {
-  Arbitrary,
-  GetRule,
-  RecordValue,
-  SetRule,
-  UrlStateContext,
-} from "@/types";
+import { isDefined } from "@/guards";
+
+import type { Arbitrary, GetRule, SetRule, UrlStateContext } from "@/types";
 
 export class QueryState<Marker extends Arbitrary> {
   private getRule: Record<Marker, keyof GetRule<Marker>>;
@@ -170,7 +165,7 @@ export class QueryState<Marker extends Arbitrary> {
   };
 
   /**
-   * @param key - Query key
+   * @param {string} key - Query key
    * @param value - Query value
    *
    * @description This method works as follows:
@@ -180,7 +175,7 @@ export class QueryState<Marker extends Arbitrary> {
    * - If the value is empty, it does not append the value to the URLSearchParams object.
    * - If the value is empty, it does not push the updated URL to the context.
    *
-   * @
+   * @returns {void}
    */
   private setValue = (key: Marker, value: unknown, push = true) => {
     if (isDefined(value)) {
@@ -198,8 +193,9 @@ export class QueryState<Marker extends Arbitrary> {
    * - It does not push the updated URL to the context.
    * - If the value is empty, it does not append the value to the URLSearchParams object.
    */
-  private include = (key: Marker, value: string | Nullish) => {
-    this.setValue(key, value, false);
+  private append = (key: Marker, value: unknown) => {
+    const stringified = this.stringify(value);
+    this.setValue(key, stringified, false);
   };
 
   /**
@@ -211,10 +207,10 @@ export class QueryState<Marker extends Arbitrary> {
    * - It does not push the updated URL to the context.
    * - If the value is an array, it appends each value to the URLSearchParams object.
    */
-  private record = (key: Marker, value: RecordValue) => {
+  private record = (key: Marker, value?: unknown[]) => {
     if (Array.isArray(value)) {
-      value.forEach((item) => this.include(key, item));
-    } else this.include(key, value);
+      value.forEach((item) => this.append(key, item));
+    }
   };
 
   private setters = {
@@ -228,11 +224,12 @@ export class QueryState<Marker extends Arbitrary> {
      * - If the value is empty, it does not append the value to the URLSearchParams object.
      * - If the value is empty, it does not push the updated URL to the context.
      */
-    record: (query: Partial<Record<Marker, RecordValue>>) => {
+    record: (query: Partial<Record<Marker, unknown[]>>) => {
       const keys = Object.keys(query) as Marker[];
       for (const key of keys) this.record(key, query[key]);
       if (keys.length) this.context.push(this.value);
     },
+
     /**
      * @param key - Query key
      * @param value - Query value
@@ -242,21 +239,10 @@ export class QueryState<Marker extends Arbitrary> {
      * - It pushes the updated URL to the context.
      * - If the value is empty, it does not append the value to the URLSearchParams object.
      */
-    encode: <Value extends string>(key: Marker, value: Value) => {
-      this.setValue(key, this.encode(value));
+    encode: <Value>(key: Marker, value: Value) => {
+      const stringified = this.stringify(value);
+      this.setValue(key, this.encode(stringified));
     },
-    // /**
-    //  * @param key - Query key
-    //  * @param value - Query value
-    //  *
-    //  * @description This method works as follows:
-    //  * - It appends the value to the URLSearchParams object.
-    //  * - It pushes the updated URL to the context.
-    //  * - If the value is empty, it does not append the value to the URLSearchParams object.
-    //  */
-    // stringify: <Value>(key: Marker, value: Value) => {
-    //   this.setValue(key, this.stringify(value));
-    // },
   };
 
   private retrieveTransform = <Value>(key: Marker) => {

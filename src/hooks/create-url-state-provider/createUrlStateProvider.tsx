@@ -2,7 +2,6 @@ import { createContext, useContext, useMemo, useState } from "react";
 
 import { UrlState } from "@/classes";
 import { assign } from "@/functions";
-import { useUrlState } from "../use-url-state";
 
 import type { Arbitrary, UrlStateContext } from "@/types";
 import type { PropsWithChildren } from "react";
@@ -65,13 +64,19 @@ function App() {
 }
 
 function Component() {
-  const { search } = useUrlState();
+  const { search, hash } = useUrlState();
   const [name, setName] = useState<string>();
-  const val = undefined;
+  hash.set.encode("nicks", ["a", "b", "c"]);
+  const [val] = search.get<"L">("q");
 
-  const [valu] = search.get<string>("", "8");
-  search.set("age", undefined);
-  const [value] = search.get("nicks");
-  const varr = search.get("q");
-  return null;
+  return (
+    <div>
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+      <button onClick={() => search.set("q", name)}>Search</button>
+    </div>
+  );
 }
