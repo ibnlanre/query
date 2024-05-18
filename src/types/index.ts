@@ -4,7 +4,7 @@ export type { Encode } from "./Encode";
 export type { GetRule } from "./GetRule";
 export type { Parse } from "./Parse";
 export type { Push } from "./Push";
-export type { RecordValue } from "./RecordValue";
+export type { Query } from "./Query";
 export type { Replacer } from "./Replacer";
 export type { Reviver } from "./Reviver";
 export type { SetRule } from "./SetRule";

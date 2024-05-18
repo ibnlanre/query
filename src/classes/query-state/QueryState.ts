@@ -1,7 +1,13 @@
 import { reverseList } from "@/functions";
 import { isDefined } from "@/guards";
 
-import type { Arbitrary, GetRule, SetRule, UrlStateContext } from "@/types";
+import type {
+  Arbitrary,
+  GetRule,
+  Query,
+  SetRule,
+  UrlStateContext,
+} from "@/types";
 
 export class QueryState<Marker extends Arbitrary> {
   private getRule: Record<Marker, keyof GetRule<Marker>>;
@@ -40,6 +46,7 @@ export class QueryState<Marker extends Arbitrary> {
   constructor(query: string, context: UrlStateContext<Marker>) {
     this.setRule = reverseList(context.setRule);
     this.getRule = reverseList(context.getRule);
+
     this.params = new URLSearchParams(query);
     this.context = context;
   }
@@ -179,43 +186,20 @@ export class QueryState<Marker extends Arbitrary> {
    */
   private setValue = (key: Marker, value: unknown, push = true) => {
     if (isDefined(value)) {
-      this.params.append(key, this.stringify(value));
+      const stringified = this.stringify(value);
+      const transform = this.setTransfrom(key);
+
+      if (transform) transform(key, stringified, push);
+      else this.params.set(key, this.encode(stringified));
+
       if (push) this.context.push(this.value);
-    }
-  };
-
-  /**
-   * @param key - Query key
-   * @param value - Query value
-   *
-   * @description This method works as follows:
-   * - It appends the value to the URLSearchParams object.
-   * - It does not push the updated URL to the context.
-   * - If the value is empty, it does not append the value to the URLSearchParams object.
-   */
-  private append = (key: Marker, value: unknown) => {
-    const stringified = this.stringify(value);
-    this.setValue(key, stringified, false);
-  };
-
-  /**
-   * @param key - Query key
-   * @param value - Query value
-   *
-   * @description This method works as follows:
-   * - It appends the value to the URLSearchParams object.
-   * - It does not push the updated URL to the context.
-   * - If the value is an array, it appends each value to the URLSearchParams object.
-   */
-  private record = (key: Marker, value?: unknown[]) => {
-    if (Array.isArray(value)) {
-      value.forEach((item) => this.append(key, item));
     }
   };
 
   private setters = {
     /**
      * @param query - Query object
+     * @param push - Push flag
      *
      * @description This method works as follows:
      * - It takes a query object as an argument.
@@ -223,37 +207,48 @@ export class QueryState<Marker extends Arbitrary> {
      * - It pushes the updated URL to the context.
      * - If the value is empty, it does not append the value to the URLSearchParams object.
      * - If the value is empty, it does not push the updated URL to the context.
+     *
+     * @returns {void}
      */
-    record: (query: Partial<Record<Marker, unknown[]>>) => {
-      const keys = Object.keys(query) as Marker[];
-      for (const key of keys) this.record(key, query[key]);
-      if (keys.length) this.context.push(this.value);
+    record: (query: Query<Marker>, push = true) => {
+      const entries = Object.entries<unknown[]>(
+        query as Record<Marker, unknown[]>
+      ) as [Marker, unknown[]][];
+
+      for (const [key, values] of entries) {
+        values.map((value) => this.setValue(key, value, push));
+      }
+
+      if (entries.length) this.context.push(this.value);
     },
 
     /**
      * @param key - Query key
      * @param value - Query value
+     * @param push - Push flag
      *
      * @description This method works as follows:
      * - It appends the value to the URLSearchParams object.
      * - It pushes the updated URL to the context.
      * - If the value is empty, it does not append the value to the URLSearchParams object.
      */
-    encode: <Value>(key: Marker, value: Value) => {
+    encode: <Value>(key: Marker, value: Value, push = true) => {
       const stringified = this.stringify(value);
-      this.setValue(key, this.encode(stringified));
+      this.params.set(key, this.encode(stringified));
+      if (push) this.context.push(this.value);
     },
   };
 
-  private retrieveTransform = <Value>(key: Marker) => {
-    type Transform = (key: Marker, fallback?: Value) => Value[];
+  private setTransfrom = <Value>(key: Marker) => {
+    type Transform = (key: Marker, value: Value, push?: boolean) => void;
 
-    const type = this.getRule[key];
-    if (type) return this.getters[type] as Transform;
+    const type = this.setRule[key];
+    const typedKey = type as keyof typeof this.setters;
+    if (type) return this.setters[typedKey] as Transform;
   };
 
   private getValue = <Value>(key: Marker, fallback?: Value) => {
-    const transform = this.retrieveTransform<Value>(key);
+    const transform = this.getTransform<Value>(key);
     if (transform) return transform(key, fallback);
     return this.resolve<Value>(key, undefined, fallback);
   };
@@ -277,6 +272,13 @@ export class QueryState<Marker extends Arbitrary> {
     boolean: (key: Marker, fallback?: boolean) => {
       return this.resolve(key, Boolean, fallback);
     },
+  };
+
+  private getTransform = <Value>(key: Marker) => {
+    type Transform = (key: Marker, fallback?: Value) => Value[];
+
+    const type = this.getRule[key];
+    if (type) return this.getters[type] as Transform;
   };
 
   public get value() {
